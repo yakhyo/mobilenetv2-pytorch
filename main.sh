@@ -1,0 +1,1 @@
+torchrun --nproc_per_node=2 main.py --epochs 300 --lr 0.045 --weight-decay 0.00004 --lr-step-size 1 --lr-gamma 0.98
