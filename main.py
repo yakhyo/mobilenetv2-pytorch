@@ -44,7 +44,6 @@ def get_args_parser():
     parser.add_argument("--local-rank", default=0, type=int, help="number of distributed processes")
 
     parser.add_argument("--test", action='store_true', help='model testing')
-    parser.add_argument("--train", action='store_true', default=True, help='model training')
 
     parser = parser.parse_args()
     return parser
