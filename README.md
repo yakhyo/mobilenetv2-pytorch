@@ -2,15 +2,15 @@
 
 **Arxiv**: https://arxiv.org/abs/1801.04381
 
-[//]: # (After 300 epochs MobileNetV3L reaches **Acc@1**: 74.3025 **Acc@5**: 91.8342)
+After 450 epochs MobileNetV3L reaches **Acc@1**: 70.1926 **Acc@5**: 89.6662
 
 ### Updates
 
-[//]: # (* 2022.05.13:)
+* 2022.05.18:
 
-[//]: # (    - Weights are uploaded to the `weights` folder. `last.ckpt` is checkpoint &#40;88.3MB&#41; &#40;includes model, model_ema, optimizer, ...&#41; and last.pth is model with)
+    - Weights are uploaded to the `weights` folder. `last.ckpt` is checkpoint (56.7MB) (includes model, model_ema, optimizer, ...) and last.pth is model with
 
-[//]: # (      Exponential Moving Average &#40;11.2MB&#41; and converted to `half&#40;&#41;` tensor.)
+      Exponential Moving Average (7.3MB) and converted to `half()` tensor.
 
 ### Dataset
 
