@@ -8,7 +8,8 @@ After 450 epochs MobileNetV3L reaches **Acc@1**: 70.1926 **Acc@5**: 89.6662
 
 * 2022.05.18:
 
-    - Weights are uploaded to the `weights` folder. `last.ckpt` is checkpoint (56.7MB) (includes model, model_ema, optimizer, ...) and last.pth is model with
+    - Weights are uploaded to the `weights` folder. `last.ckpt` is checkpoint (56.7MB) (includes model, model_ema,
+      optimizer, ...) and last.pth is model with
 
       Exponential Moving Average (7.3MB) and converted to `half()` tensor.
 
@@ -49,6 +50,8 @@ bash main.sh
 torchrun --nproc_per_node=@num_gpu main.py --epochs 300  --batch-size 512 --lr 0.064  --lr-step-size 2 --lr-gamma 0.973 --random-erase 0.2
 ```
 
+To resume the training add `--resume @path_to_checkpoint` to `main.sh`
+
 Run `main.py` for `DataParallel` training.
 
 The training config taken
@@ -56,6 +59,7 @@ from [official torchvision models' training config](https://github.com/pytorch/v
 .
 
 ### Evaluation
+
 ```commandline
 python main.py --test
 ```

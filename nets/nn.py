@@ -8,14 +8,6 @@ def _pad(kernel_size, dilation=1):
     return kernel_size // (2 * dilation)
 
 
-def _make_divisible(width):
-    divisor = 8
-    new_width = max(divisor, int(width + divisor / 2) // divisor * divisor)
-    if new_width < 0.9 * width:
-        new_width += divisor
-    return new_width
-
-
 def _init_weight(self):
     for m in self.modules():
         if isinstance(m, nn.Conv2d):
