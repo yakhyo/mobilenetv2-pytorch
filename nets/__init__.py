@@ -1,3 +1,3 @@
-from .nn import MobileNetV2, EMA
-from .nn import CrossEntropyLoss, PolyLoss
-from .nn import RMSprop, StepLR
+from nets.nn import MobileNetV2, EMA
+from nets.nn import CrossEntropyLoss, PolyLoss
+from nets.nn import RMSprop, StepLR
