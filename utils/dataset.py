@@ -1,11 +1,18 @@
 import os
 from PIL import Image
+from typing import Optional, Callable
+
+import torch
 from torch.utils import data
 
 
 class ImageFolder(data.Dataset):
 
-    def __init__(self, root, transform=None):
+    def __init__(
+            self,
+            root: str,
+            transform: Optional[Callable[..., torch.nn.Module]] = None
+    ) -> None:
 
         self.transform = transform
         self.classes, self.class_to_idx = self.find_classes(root)
@@ -25,7 +32,7 @@ class ImageFolder(data.Dataset):
         return len(self.samples)
 
     @staticmethod
-    def load_image(path):
+    def load_image(path: str):
         with open(path, 'rb') as f:
             image = Image.open(f)
             image = image.convert('RGB')
@@ -33,14 +40,16 @@ class ImageFolder(data.Dataset):
         return image
 
     @staticmethod
-    def find_classes(directory):
-        class_names = sorted(entry.name for entry in os.scandir(directory) if entry.is_dir())
-        class_to_idx = {cls_name: idx for idx, cls_name in enumerate(class_names)}
+    def find_classes(directory: str):
+        class_names = sorted(
+            entry.name for entry in os.scandir(directory) if entry.is_dir())
+        class_to_idx = {cls_name: idx for idx, cls_name in
+                        enumerate(class_names)}
 
         return class_names, class_to_idx
 
     @staticmethod
-    def make_dataset(directory, class_to_idx=None):
+    def make_dataset(directory: str, class_to_idx: Optional[dict] = None):
         if class_to_idx is None:
             _, class_to_idx = ImageFolder.find_classes(directory)
 
@@ -49,7 +58,8 @@ class ImageFolder(data.Dataset):
             class_index = class_to_idx[target_class]
             target_dir = os.path.join(directory, target_class)
 
-            for root, _, file_names in sorted(os.walk(target_dir, followlinks=True)):
+            for root, _, file_names in sorted(
+                    os.walk(target_dir, followlinks=True)):
                 for file_name in sorted(file_names):
                     path = os.path.join(root, file_name)
                     base, ext = os.path.splitext(path)
