@@ -48,29 +48,30 @@ class Conv2dNormActivation(nn.Module):
         super().__init__()
         if padding is None:
             padding = kernel_size // (2 * dilation)
-        self.conv = nn.Conv2d(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=padding,
-            dilation=dilation,
-            groups=groups,
-            bias=False
-        )
-        self.norm = nn.BatchNorm2d(
-            num_features=out_channels,
-            eps=0.001,
-            momentum=0.01
-        )
-        yes_activation = activation is not None
-        self.act = activation(inplace=True) if yes_activation else nn.Identity()
+        layers: List[nn.Module] = [
+            nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                dilation=dilation,
+                groups=groups,
+                bias=False
+            ),
+            nn.BatchNorm2d(
+                num_features=out_channels,
+                eps=0.001,
+                momentum=0.01
+            )
+        ]
+        if activation is not None:
+            layers.append(activation(inplace=True))
+
+        self.block = nn.Sequential(*layers)
 
     def forward(self, x: Tensor) -> Tensor:
-        x = self.conv(x)
-        x = self.norm(x)
-        x = self.act(x)
-        return x
+        return self.block(x)
 
 
 class InvertedResidual(nn.Module):
@@ -84,10 +85,10 @@ class InvertedResidual(nn.Module):
 
     def __init__(
             self,
-            in_channels,
-            out_channels,
-            stride,
-            expand_ratio
+            in_channels: int,
+            out_channels: int,
+            stride: int,
+            expand_ratio: float
     ) -> None:
         super().__init__()
         self._shortcut = stride == 1 and in_channels == out_channels
@@ -123,17 +124,16 @@ class InvertedResidual(nn.Module):
                 nn.BatchNorm2d(num_features=out_channels),
             ]
         )
-        self._block = nn.Sequential(*layers)
+        self.block = nn.Sequential(*layers)
 
     def forward(self, x: Tensor) -> Tensor:
         if self._shortcut:
-            return x + self._block(x)
-        else:
-            return self._block(x)
+            return x + self.block(x)
+        return self.block(x)
 
 
 class MobileNetV2(nn.Module):
-    """MobileNet V2 <`https://arxiv.org/abs/1801.04381`>"""
+    """MobileNet V2 <https://arxiv.org/abs/1801.04381>"""
 
     def __init__(
             self,
