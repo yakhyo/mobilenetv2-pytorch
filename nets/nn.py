@@ -6,20 +6,6 @@ from typing import Optional, Callable, List
 __all__ = ["MobileNetV2"]
 
 
-def _init_weight(self):
-    for m in self.modules():
-        if isinstance(m, nn.Conv2d):
-            nn.init.kaiming_normal_(m.weight, mode="fan_out")
-            if m.bias is not None:
-                nn.init.zeros_(m.bias)
-        elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
-            nn.init.ones_(m.weight)
-            nn.init.zeros_(m.bias)
-        elif isinstance(m, nn.Linear):
-            nn.init.normal_(m.weight, 0, 0.01)
-            nn.init.zeros_(m.bias)
-
-
 class Conv2dNormActivation(nn.Module):
     """Standard Convolutional Block
     Consists of Convolutional, Normalization, Activation Layers
@@ -138,12 +124,9 @@ class MobileNetV2(nn.Module):
     def __init__(
             self,
             num_classes: int = 1000,
-            dropout: float = 0.2,
-            init_weights: bool = True
+            dropout: float = 0.2
     ) -> None:
         super().__init__()
-        if init_weights:
-            _init_weight(self)
         filters = [3, 32, 16, 24, 32, 64, 96, 160, 320, 1280]
 
         features: List[nn.Module] = [
@@ -189,6 +172,18 @@ class MobileNetV2(nn.Module):
             nn.Dropout(p=dropout),
             nn.Linear(1280, num_classes),
         )
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out")
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.zeros_(m.bias)
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.features(x)
