@@ -6,7 +6,7 @@ from typing import Optional, Callable, List
 __all__ = ["MobileNetV2"]
 
 
-class Conv2dNormActivation(nn.Module):
+class Conv2dNormActivation(nn.Sequential):
     """Standard Convolutional Block
     Consists of Convolutional, Normalization, Activation Layers
     Args:
@@ -31,7 +31,6 @@ class Conv2dNormActivation(nn.Module):
             groups: int = 1,
             activation: Optional[Callable[..., torch.nn.Module]] = None
     ) -> None:
-        super().__init__()
         if padding is None:
             padding = kernel_size // (2 * dilation)
         layers: List[nn.Module] = [
@@ -54,10 +53,7 @@ class Conv2dNormActivation(nn.Module):
         if activation is not None:
             layers.append(activation(inplace=True))
 
-        self.block = nn.Sequential(*layers)
-
-    def forward(self, x: Tensor) -> Tensor:
-        return self.block(x)
+        super().__init__(*layers)
 
 
 class InvertedResidual(nn.Module):
@@ -74,7 +70,7 @@ class InvertedResidual(nn.Module):
             in_channels: int,
             out_channels: int,
             stride: int,
-            expand_ratio: float
+            expand_ratio: int
     ) -> None:
         super().__init__()
         self._shortcut = stride == 1 and in_channels == out_channels
@@ -110,12 +106,12 @@ class InvertedResidual(nn.Module):
                 nn.BatchNorm2d(num_features=out_channels),
             ]
         )
-        self.block = nn.Sequential(*layers)
+        self.conv = nn.Sequential(*layers)
 
     def forward(self, x: Tensor) -> Tensor:
         if self._shortcut:
-            return x + self.block(x)
-        return self.block(x)
+            return x + self.conv(x)
+        return self.conv(x)
 
 
 class MobileNetV2(nn.Module):
@@ -148,7 +144,7 @@ class MobileNetV2(nn.Module):
             InvertedResidual(filters[5], filters[5], 1, 6),
             InvertedResidual(filters[5], filters[5], 1, 6),
             # 1/32
-            InvertedResidual(filters[5], filters[6], 2, 6),
+            InvertedResidual(filters[5], filters[6], 1, 6),
             InvertedResidual(filters[6], filters[6], 1, 6),
             InvertedResidual(filters[6], filters[6], 1, 6),
             # 1/64
@@ -163,9 +159,6 @@ class MobileNetV2(nn.Module):
         ]
         # make it nn.Sequential
         self.features = nn.Sequential(*features)
-
-        # average pooling
-        self.pool = nn.AdaptiveMaxPool2d(1)
 
         # building classifier
         self.classifier = nn.Sequential(
@@ -187,7 +180,7 @@ class MobileNetV2(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.features(x)
-        x = self.pool(x)
+        x = nn.functional.adaptive_avg_pool2d(x, (1, 1))
         x = torch.flatten(x, start_dim=1)
         x = self.classifier(x)
         return x
@@ -198,6 +191,8 @@ if __name__ == '__main__':
 
     img = torch.randn(1, 3, 224, 224)
     print(mobilenet(img).shape)
+    from torchsummary import summary
 
+    summary(mobilenet, input_size=(3, 224, 224))
     print("Num params. of MobileNetV2: {}".format(
         sum(p.numel() for p in mobilenet.parameters() if p.requires_grad)))
