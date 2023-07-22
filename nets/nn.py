@@ -1,24 +1,14 @@
+from typing import List, Optional
+
 import torch
 from torch import nn, Tensor
 
-from typing import Optional, Callable, List
+from torchsummary import summary
 
 __all__ = ["MobileNetV2"]
 
-
-class Conv2dNormActivation(nn.Sequential):
-    """Standard Convolutional Block
-    Consists of Convolutional, Normalization, Activation Layers
-    Args:
-        in_channels: input channels
-        out_channels: output channels
-        kernel_size: kernel size
-        stride: stride size
-        padding: padding size
-        dilation: dilation rate
-        groups: number of groups
-        activation: activation function
-    """
+class Conv(nn.Sequential):
+    """Convolutional block, consists of nn.Conv2d, nn.BatchNorm2d, nn.ReLU6"""
 
     def __init__(
             self,
@@ -29,10 +19,12 @@ class Conv2dNormActivation(nn.Sequential):
             padding: Optional[int] = None,
             dilation: int = 1,
             groups: int = 1,
-            activation: Optional[Callable[..., torch.nn.Module]] = None
+            inplace: bool = True,
+            bias: bool = False,
     ) -> None:
         if padding is None:
-            padding = kernel_size // (2 * dilation)
+            padding = (kernel_size - 1) // 2 * dilation
+
         layers: List[nn.Module] = [
             nn.Conv2d(
                 in_channels=in_channels,
@@ -42,35 +34,24 @@ class Conv2dNormActivation(nn.Sequential):
                 padding=padding,
                 dilation=dilation,
                 groups=groups,
-                bias=False
+                bias=bias,
             ),
-            nn.BatchNorm2d(
-                num_features=out_channels,
-                eps=0.001,
-                momentum=0.01
-            )
+            nn.BatchNorm2d(num_features=out_channels),
+            nn.ReLU6(inplace=inplace)
         ]
-        if activation is not None:
-            layers.append(activation(inplace=True))
 
         super().__init__(*layers)
 
 
 class InvertedResidual(nn.Module):
-    """Inverted Residual Block
-    Args:
-        in_channels: inpout channels
-        out_channels: output channels
-        stride: stride size
-        expand_ratio: expansion ratio
-    """
+    """Inverted Residual block"""
 
     def __init__(
             self,
             in_channels: int,
             out_channels: int,
             stride: int,
-            expand_ratio: int
+            expand_ratio: int,
     ) -> None:
         super().__init__()
         self._shortcut = stride == 1 and in_channels == out_channels
@@ -78,23 +59,24 @@ class InvertedResidual(nn.Module):
 
         layers: List[nn.Module] = []
         if expand_ratio != 1:
+            # point-wise convolution
             layers.append(
-                Conv2dNormActivation(
+                Conv(
                     in_channels=in_channels,
                     out_channels=mid_channels,
                     kernel_size=1,
-                    activation=nn.ReLU6
                 )
             )
         layers.extend(
             [
-                Conv2dNormActivation(
+                # depth-wise convolution
+                Conv(
                     in_channels=mid_channels,
                     out_channels=mid_channels,
                     stride=stride,
                     groups=mid_channels,
-                    activation=nn.ReLU6
                 ),
+                # point-wise-linear
                 nn.Conv2d(
                     in_channels=mid_channels,
                     out_channels=out_channels,
@@ -107,6 +89,7 @@ class InvertedResidual(nn.Module):
             ]
         )
         self.conv = nn.Sequential(*layers)
+        self.out_channels = out_channels
 
     def forward(self, x: Tensor) -> Tensor:
         if self._shortcut:
@@ -115,48 +98,54 @@ class InvertedResidual(nn.Module):
 
 
 class MobileNetV2(nn.Module):
-    """MobileNet V2 <https://arxiv.org/abs/1801.04381>"""
-
     def __init__(
             self,
             num_classes: int = 1000,
-            dropout: float = 0.2
+            dropout: float = 0.2,
     ) -> None:
+        """MobileNet V2 main class
+        Args:
+            num_classes (int): number of classes
+            dropout (float): dropout probability
+        """
         super().__init__()
-        filters = [3, 32, 16, 24, 32, 64, 96, 160, 320, 1280]
 
-        features: List[nn.Module] = [
-            # 1/2
-            Conv2dNormActivation(
-                filters[0], filters[1], stride=2, activation=nn.ReLU6
-            ),
-            InvertedResidual(filters[1], filters[2], 1, 1),
-            # 1/4
-            InvertedResidual(filters[2], filters[3], 2, 6),
-            InvertedResidual(filters[3], filters[3], 1, 6),
-            # 1/8
-            InvertedResidual(filters[3], filters[4], 2, 6),
-            InvertedResidual(filters[4], filters[4], 1, 6),
-            InvertedResidual(filters[4], filters[4], 1, 6),
-            # 1/16
-            InvertedResidual(filters[4], filters[5], 2, 6),
-            InvertedResidual(filters[5], filters[5], 1, 6),
-            InvertedResidual(filters[5], filters[5], 1, 6),
-            InvertedResidual(filters[5], filters[5], 1, 6),
-            # 1/32
-            InvertedResidual(filters[5], filters[6], 1, 6),
-            InvertedResidual(filters[6], filters[6], 1, 6),
-            InvertedResidual(filters[6], filters[6], 1, 6),
-            # 1/64
-            InvertedResidual(filters[6], filters[7], 2, 6),
-            InvertedResidual(filters[7], filters[7], 1, 6),
-            InvertedResidual(filters[7], filters[7], 1, 6),
-            InvertedResidual(filters[7], filters[8], 1, 6),
+        _config = [
+            [32, 16, 1, 1],
 
-            Conv2dNormActivation(
-                filters[8], filters[9], kernel_size=1, activation=nn.ReLU6
-            )
+            [16, 24, 2, 6],
+            [24, 24, 1, 6],
+
+            [24, 32, 2, 6],
+            [32, 32, 1, 6],
+            [32, 32, 1, 6],
+
+            [32, 64, 2, 6],
+            [64, 64, 1, 6],
+            [64, 64, 1, 6],
+            [64, 64, 1, 6],
+            [64, 96, 1, 6],
+            [96, 96, 1, 6],
+            [96, 96, 1, 6],
+
+            [96, 160, 2, 6],
+            [160, 160, 1, 6],
+            [160, 160, 1, 6],
+            [160, 320, 1, 6],
         ]
+
+        # building first layer
+        features: List[nn.Module] = [
+            Conv(3, 32, stride=2)
+        ]
+
+        # building inverted residual block
+        for conf in _config:
+            features.append(InvertedResidual(*conf))
+
+        # building last several layers
+        features.append(Conv(320, 1280, kernel_size=1))
+
         # make it nn.Sequential
         self.features = nn.Sequential(*features)
 
@@ -166,6 +155,7 @@ class MobileNetV2(nn.Module):
             nn.Linear(1280, num_classes),
         )
 
+        # weight initialization
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode="fan_out")
@@ -181,18 +171,11 @@ class MobileNetV2(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         x = self.features(x)
         x = nn.functional.adaptive_avg_pool2d(x, (1, 1))
-        x = torch.flatten(x, start_dim=1)
+        x = torch.flatten(x, 1)
         x = self.classifier(x)
         return x
 
 
 if __name__ == '__main__':
     mobilenet = MobileNetV2()
-
-    img = torch.randn(1, 3, 224, 224)
-    print(mobilenet(img).shape)
-    from torchsummary import summary
-
-    summary(mobilenet, input_size=(3, 224, 224))
-    print("Num params. of MobileNetV2: {}".format(
-        sum(p.numel() for p in mobilenet.parameters() if p.requires_grad)))
+    summary(mobilenet, input_size=(3, 224, 224), device="cpu")
