@@ -26,10 +26,10 @@ from torchvision import transforms
 
 from PIL import Image
 from nets import MobileNetV2
-from _meta import IMAGENET_CATEGORIES
+from assets.meta import IMAGENET_CATEGORIES
 
 model = MobileNetV2()
-model.load_state_dict("./weights/mobilenetv2.pt")
+model.load_state_dict("./weights/mobilenetv2.pt") # weights ported from torchvision
 model.float()  # converting weights to float32
 
 
@@ -62,7 +62,7 @@ def inference(model, image_path):
     print(f"Predicted class label: {predicted_label}")
 
 
-inference(model, "tabby_cat.jpg")
+inference(model, "assets/tabby_cat.jpg")
 ```
 
 ## Datasets
