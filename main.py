@@ -18,48 +18,30 @@ def get_args_parser():
 
     parser = argparse.ArgumentParser(description="MobileNetV2 Training")
 
-    parser.add_argument("--data-path",
-                        default="../../Projects/Datasets/IMAGENET/", type=str,
-                        help="dataset path")
+    parser.add_argument("--data-path", default="/path/to/IMAGENET/", type=str, help="dataset path")
 
-    parser.add_argument("--batch-size", default=128, type=int,
-                        help="images per gpu, total = num_GPU x batch_size")
-    parser.add_argument("--epochs", default=90, type=int,
-                        help="number of total epochs to run")
-    parser.add_argument("--workers", default=8, type=int,
-                        help="number of data loading workers")
+    parser.add_argument("--batch-size", default=128, type=int, help="images per gpu, total = num_GPU x batch_size")
+    parser.add_argument("--epochs", default=90, type=int, help="number of total epochs to run")
+    parser.add_argument("--workers", default=8, type=int, help="number of data loading workers")
 
-    parser.add_argument("--lr", default=0.1, type=float,
-                        help="initial learning rate")
+    parser.add_argument("--lr", default=0.1, type=float, help="initial learning rate")
     parser.add_argument("--momentum", default=0.9, type=float, help="momentum")
-    parser.add_argument("--weight-decay", default=1e-4, type=float,
-                        help="weight decay")
+    parser.add_argument("--weight-decay", default=1e-4, type=float, help="weight decay")
 
-    parser.add_argument("--warmup-epochs", default=0, type=int,
-                        help="number of warmup epochs")
-    parser.add_argument("--warmup-lr-init", default=0, type=float,
-                        help="warmup learning rate init")
-    parser.add_argument("--lr-step-size", default=30, type=int,
-                        help="decrease lr every step-size epochs")
-    parser.add_argument("--lr-gamma", default=0.1, type=float,
-                        help="decrease lr by a factor of lr-gamma")
+    parser.add_argument("--warmup-epochs", default=0, type=int, help="number of warmup epochs")
+    parser.add_argument("--warmup-lr-init", default=0, type=float, help="warmup learning rate init")
+    parser.add_argument("--lr-step-size", default=30, type=int, help="decrease lr every step-size epochs")
+    parser.add_argument("--lr-gamma", default=0.1, type=float, help="decrease lr by a factor of lr-gamma")
 
-    parser.add_argument("--interval", default=10, type=int,
-                        help="print frequency")
-    parser.add_argument("--resume", default="", type=str,
-                        help="path of checkpoint")
-    parser.add_argument("--start-epoch", default=0, type=int,
-                        help="start epoch")
+    parser.add_argument("--interval", default=10, type=int, help="print frequency")
+    parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
+    parser.add_argument("--start-epoch", default=0, type=int, help="start epoch")
 
-    parser.add_argument("--sync-bn", help="Use sync batch norm",
-                        action="store_true")
-    parser.add_argument("--random-erase", default=0.0, type=float,
-                        help="random erasing probability")
+    parser.add_argument("--sync-bn", help="Use sync batch norm", action="store_true")
+    parser.add_argument("--random-erase", default=0.0, type=float, help="random erasing probability")
 
-    parser.add_argument("--world-size", default=1, type=int,
-                        help="number of distributed processes")
-    parser.add_argument("--local-rank", default=0, type=int,
-                        help="number of distributed processes")
+    parser.add_argument("--world-size", default=1, type=int, help="number of distributed processes")
+    parser.add_argument("--local-rank", default=0, type=int, help="number of distributed processes")
 
     parser.add_argument("--test", action='store_true', help='model testing')
 
@@ -94,9 +76,7 @@ def load_data(args):
     test_dataset = utils.dataset.ImageFolder(
         os.path.join(args.data_path, "val"),
         transform=transforms.Compose([
-            transforms.Resize(
-                size=256, interpolation=InterpolationMode.BILINEAR
-            ),
+            transforms.Resize(size=256, interpolation=InterpolationMode.BILINEAR),
             transforms.CenterCrop(size=224),
             transforms.PILToTensor(),
             transforms.ConvertImageDtype(torch.float),
@@ -109,10 +89,8 @@ def load_data(args):
     print(f'Done! Took {time.time() - st}')
 
     if args.distributed:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(
-            train_dataset)
-        test_sampler = torch.utils.data.distributed.DistributedSampler(
-            test_dataset, shuffle=False)
+        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+        test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset, shuffle=False)
     else:
         train_sampler = torch.utils.data.RandomSampler(train_dataset)
         test_sampler = torch.utils.data.SequentialSampler(test_dataset)
@@ -120,8 +98,7 @@ def load_data(args):
     return train_dataset, test_dataset, train_sampler, test_sampler
 
 
-def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch,
-                    args, model_ema=None):
+def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema=None):
     model.train()
     batch_time_m = utils.AverageMeter()
     losses_m = utils.AverageMeter()
@@ -267,9 +244,7 @@ def main(args):
     model_ema = utils.EMA(model, decay=0.9999)
 
     if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(
-            model, device_ids=[args.local_rank]
-        )
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank])
     else:
         model = torch.nn.DataParallel(model)
 
@@ -300,11 +275,16 @@ def main(args):
             if args.distributed:
                 train_sampler.set_epoch(epoch)
 
-            train_one_epoch(model, criterion, optimizer, train_loader, device,
-                            epoch, args, model_ema)
+            train_one_epoch(model, criterion, optimizer, train_loader, device, epoch, args, model_ema)
             scheduler.step(epoch + 1)
-            _, acc1, acc5 = validate(model_ema.model, criterion, test_loader,
-                                     device=device, args=args, log_suffix='EMA')
+            _, acc1, acc5 = validate(
+                model_ema.model,
+                criterion,
+                test_loader,
+                device=device,
+                args=args,
+                log_suffix='EMA'
+            )
             checkpoint = {
                 'model': model.module.state_dict(),
                 'model_ema': model_ema.model.state_dict(),

@@ -7,6 +7,7 @@ from torchsummary import summary
 
 __all__ = ["MobileNetV2"]
 
+
 class Conv(nn.Sequential):
     """Convolutional block, consists of nn.Conv2d, nn.BatchNorm2d, nn.ReLU6"""
 
@@ -46,13 +47,7 @@ class Conv(nn.Sequential):
 class InvertedResidual(nn.Module):
     """Inverted Residual block"""
 
-    def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            stride: int,
-            expand_ratio: int,
-    ) -> None:
+    def __init__(self, in_channels: int, out_channels: int, stride: int, expand_ratio: int) -> None:
         super().__init__()
         self._shortcut = stride == 1 and in_channels == out_channels
         mid_channels = int(round(in_channels * expand_ratio))
@@ -61,21 +56,12 @@ class InvertedResidual(nn.Module):
         if expand_ratio != 1:
             # point-wise convolution
             layers.append(
-                Conv(
-                    in_channels=in_channels,
-                    out_channels=mid_channels,
-                    kernel_size=1,
-                )
+                Conv(in_channels=in_channels, out_channels=mid_channels, kernel_size=1)
             )
         layers.extend(
             [
                 # depth-wise convolution
-                Conv(
-                    in_channels=mid_channels,
-                    out_channels=mid_channels,
-                    stride=stride,
-                    groups=mid_channels,
-                ),
+                Conv(in_channels=mid_channels, out_channels=mid_channels, stride=stride, groups=mid_channels),
                 # point-wise-linear
                 nn.Conv2d(
                     in_channels=mid_channels,
@@ -98,11 +84,7 @@ class InvertedResidual(nn.Module):
 
 
 class MobileNetV2(nn.Module):
-    def __init__(
-            self,
-            num_classes: int = 1000,
-            dropout: float = 0.2,
-    ) -> None:
+    def __init__(self, num_classes: int = 1000, dropout: float = 0.2) -> None:
         """MobileNet V2 main class
         Args:
             num_classes (int): number of classes
@@ -135,9 +117,7 @@ class MobileNetV2(nn.Module):
         ]
 
         # building first layer
-        features: List[nn.Module] = [
-            Conv(3, 32, stride=2)
-        ]
+        features: List[nn.Module] = [Conv(3, 32, stride=2)]
 
         # building inverted residual block
         for conf in _config:

@@ -57,13 +57,10 @@ def init_distributed_mode(args):
         args.local_rank = int(os.environ["RANK"])
         args.world_size = int(os.environ["WORLD_SIZE"])
         torch.cuda.set_device(args.local_rank)
-        torch.distributed.init_process_group(
-            backend="nccl", init_method="env://"
-        )
+        torch.distributed.init_process_group(backend="nccl", init_method="env://")
 
     if args.distributed:
-        print(f"| distributed init (rank {args.local_rank}): env://",
-              flush=True)
+        print(f"| distributed init (rank {args.local_rank}): env://", flush=True)
     else:
         print("Warning: Data Parallel is ON. Please use DDP")
 
@@ -77,21 +74,13 @@ class EMA(torch.nn.Module):
         decay: exponential decay value
     """
 
-    def __init__(
-            self,
-            model: nn.Module,
-            decay: float = 0.9999
-    ) -> None:
+    def __init__(self, model: nn.Module, decay: float = 0.9999) -> None:
         super().__init__()
         self.model = deepcopy(model)
         self.model.eval()
         self.decay = decay
 
-    def _update(
-            self,
-            model: nn.Module,
-            update_fn
-    ) -> None:
+    def _update(self, model: nn.Module, update_fn) -> None:
         with torch.no_grad():
             ema_v = self.model.state_dict().values()
             model_v = model.state_dict().values()
@@ -99,18 +88,13 @@ class EMA(torch.nn.Module):
                 e.copy_(update_fn(e, m))
 
     def update_parameters(self, model):
-        self._update(model, update_fn=lambda e, m: self.decay * e + (
-                1. - self.decay) * m)
+        self._update(model, update_fn=lambda e, m: self.decay * e + (1. - self.decay) * m)
 
 
 class CrossEntropyLoss:
     """Cross Entropy Loss"""""
 
-    def __init__(
-            self,
-            reduction: str = 'mean',
-            label_smoothing: float = 0.0
-    ) -> None:
+    def __init__(self, reduction: str = 'mean', label_smoothing: float = 0.0) -> None:
         super().__init__()
         self.label_smoothing = label_smoothing
         self.reduction = reduction
@@ -125,15 +109,26 @@ class CrossEntropyLoss:
 
 
 class RMSprop(torch.optim.Optimizer):
-    def __init__(self, params, lr=1e-2, alpha=0.9, eps=1e-7, weight_decay=0,
-                 momentum=0., centered=False,
-                 decoupled_decay=False, lr_in_momentum=True):
+    def __init__(
+            self,
+            params,
+            lr=1e-2,
+            alpha=0.9,
+            eps=1e-7,
+            weight_decay=0,
+            momentum=0.,
+            centered=False,
+            decoupled_decay=False,
+            lr_in_momentum=True
+    ) -> None:
 
-        defaults = dict(lr=lr, momentum=momentum, alpha=alpha, eps=eps,
-                        centered=centered, weight_decay=weight_decay,
-                        decoupled_decay=decoupled_decay,
-                        lr_in_momentum=lr_in_momentum)
-        super(RMSprop, self).__init__(params, defaults)
+        defaults = dict(
+            lr=lr, momentum=momentum, alpha=alpha, eps=eps,
+            centered=centered, weight_decay=weight_decay,
+            decoupled_decay=decoupled_decay,
+            lr_in_momentum=lr_in_momentum
+        )
+        super().__init__(params, defaults)
 
     def __setstate__(self, state):
         super().__setstate__(state)
@@ -152,14 +147,12 @@ class RMSprop(torch.optim.Optimizer):
                     continue
                 grad = p.grad.data
                 if grad.is_sparse:
-                    raise RuntimeError(
-                        'RMSprop does not support sparse gradients')
+                    raise RuntimeError('RMSprop does not support sparse gradients')
                 state = self.state[p]
 
                 if len(state) == 0:
                     state['step'] = 0
-                    state['square_avg'] = torch.ones_like(
-                        p.data)  # PyTorch inits to zero
+                    state['square_avg'] = torch.ones_like(p.data)  # PyTorch inits to zero
                     if group['momentum'] > 0:
                         state['momentum_buffer'] = torch.zeros_like(p.data)
                     if group['centered']:
@@ -189,8 +182,7 @@ class RMSprop(torch.optim.Optimizer):
                 if group['momentum'] > 0:
                     buf = state['momentum_buffer']
                     if 'lr_in_momentum' in group and group['lr_in_momentum']:
-                        buf.mul_(group['momentum']).addcdiv_(grad, avg,
-                                                             value=group['lr'])
+                        buf.mul_(group['momentum']).addcdiv_(grad, avg, value=group['lr'])
                         p.data.add_(-buf)
                     else:
                         buf.mul_(group['momentum']).addcdiv_(grad, avg)
@@ -203,8 +195,7 @@ class RMSprop(torch.optim.Optimizer):
 
 class StepLR:
 
-    def __init__(self, optimizer, step_size, gamma=1., warmup_epochs=0,
-                 warmup_lr_init=0):
+    def __init__(self, optimizer, step_size, gamma=1., warmup_epochs=0, warmup_lr_init=0):
 
         self.optimizer = optimizer
         self.step_size = step_size
@@ -215,31 +206,26 @@ class StepLR:
         for group in self.optimizer.param_groups:
             group.setdefault('initial_lr', group['lr'])
 
-        self.base_lr_values = [group['initial_lr'] for group in
-                               self.optimizer.param_groups]
+        self.base_lr_values = [group['initial_lr'] for group in self.optimizer.param_groups]
         self.update_groups(self.base_lr_values)
 
         if self.warmup_epochs:
-            self.warmup_steps = [(v - warmup_lr_init) / self.warmup_epochs for v
-                                 in self.base_lr_values]
+            self.warmup_steps = [(v - warmup_lr_init) / self.warmup_epochs for v in self.base_lr_values]
             self.update_groups(self.warmup_lr_init)
         else:
             self.warmup_steps = [1 for _ in self.base_lr_values]
 
     def state_dict(self):
-        return {key: value for key, value in self.__dict__.items() if
-                key != 'optimizer'}
+        return {key: value for key, value in self.__dict__.items() if key != 'optimizer'}
 
     def load_state_dict(self, state_dict):
         self.__dict__.update(state_dict)
 
     def step(self, epoch):
         if epoch < self.warmup_epochs:
-            values = [self.warmup_lr_init + epoch * s for s in
-                      self.warmup_steps]
+            values = [self.warmup_lr_init + epoch * s for s in self.warmup_steps]
         else:
-            values = [base_lr * (self.gamma ** (epoch // self.step_size)) for
-                      base_lr in self.base_lr_values]
+            values = [base_lr * (self.gamma ** (epoch // self.step_size)) for base_lr in self.base_lr_values]
         if values is not None:
             self.update_groups(values)
 

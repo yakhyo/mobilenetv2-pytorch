@@ -8,11 +8,7 @@ from torch.utils import data
 
 class ImageFolder(data.Dataset):
 
-    def __init__(
-            self,
-            root: str,
-            transform: Optional[Callable[..., torch.nn.Module]] = None
-    ) -> None:
+    def __init__(self, root: str, transform: Optional[Callable[..., torch.nn.Module]] = None) -> None:
 
         self.transform = transform
         self.classes, self.class_to_idx = self.find_classes(root)
@@ -28,7 +24,6 @@ class ImageFolder(data.Dataset):
         return image, label
 
     def __len__(self):
-
         return len(self.samples)
 
     @staticmethod
@@ -41,10 +36,8 @@ class ImageFolder(data.Dataset):
 
     @staticmethod
     def find_classes(directory: str):
-        class_names = sorted(
-            entry.name for entry in os.scandir(directory) if entry.is_dir())
-        class_to_idx = {cls_name: idx for idx, cls_name in
-                        enumerate(class_names)}
+        class_names = sorted(entry.name for entry in os.scandir(directory) if entry.is_dir())
+        class_to_idx = {cls_name: idx for idx, cls_name in enumerate(class_names)}
 
         return class_names, class_to_idx
 
