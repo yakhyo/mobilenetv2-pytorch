@@ -1,5 +1,7 @@
 # [MobileNet V2](https://arxiv.org/abs/1801.04381) in PyTorch
 
+![Downloads](https://img.shields.io/github/downloads/yakhyo/mobilenetv2-pytorch/total) [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/yakhyo/mobilenetv2-pytorch)
+
 MobileNet V2 implementation using PyTorch
 
 **Arxiv:** https://arxiv.org/abs/1801.04381
